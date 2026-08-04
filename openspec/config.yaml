@@ -1,0 +1,78 @@
+schema: spec-driven
+project: lc-ia_0.2
+execution_mode: interactive
+
+artifact_store:
+  mode: hybrid
+
+delivery:
+  strategy: auto-chain
+  review_budget_lines: 800
+
+strict_tdd: false
+
+context: |
+  Estado real: documentación conceptual del MVP; no existe implementación ni configuración de build.
+  Arquitectura objetivo documentada: servicio remoto y gateway local con límites de confianza separados.
+  Stack objetivo citado en documentación previa: Java, Spring Boot y PostgreSQL; todavía no está materializado.
+  Alcance habilitado: desarrollo y validación con datos exclusivamente sintéticos.
+  Datos reales y habilitación operativa permanecen bloqueados por gates de identidad, seguridad y operación.
+  Idioma de documentación: español profesional neutro; código e identificadores futuros: inglés.
+
+testing:
+  detected_at: 2026-08-02
+  availability: unavailable
+  reason: No se detectaron implementación, manifiestos, configuración de build ni test runner.
+  runner:
+    available: false
+    framework: ""
+    command: ""
+  layers:
+    unit:
+      available: false
+      tool: ""
+    integration:
+      available: false
+      tool: ""
+    e2e:
+      available: false
+      tool: ""
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: false
+      command: ""
+    type_checker:
+      available: false
+      command: ""
+    formatter:
+      available: false
+      command: ""
+
+rules:
+  proposal:
+    - Distinguir decisiones confirmadas, propuestas y pendientes.
+    - Mantener fuera de alcance los datos reales hasta superar sus gates.
+  specs:
+    - Usar escenarios Given/When/Then y términos normativos RFC 2119.
+    - Definir primero comportamiento verificable con datos sintéticos.
+  design:
+    - No convertir el stack objetivo documental en stack implementado sin evidencia del repositorio.
+    - Mantener separados los límites de confianza remoto y local.
+  tasks:
+    - Agrupar por fases y mantener cada tarea ejecutable en una sesión.
+    - Respetar la estrategia auto-chain y el presupuesto de revisión de 800 líneas.
+  apply:
+    guidelines:
+      - Seguir las especificaciones aceptadas y crear solo la infraestructura mínima necesaria.
+      - Incorporar un test runner antes de exigir TDD estricto.
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Advertir antes de integrar deltas destructivos.
