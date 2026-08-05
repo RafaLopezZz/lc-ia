@@ -17,11 +17,11 @@ Chain strategy: stacked-to-main
 
 ### Unidades revisables
 
-| Unidad | Alcance/base | Test focal | Harness | Reversión |
-|---|---|---|---|---|
-| 1 | Runner, guard y modelo/`main` | `mvn -f synthetic-retrieval/pom.xml -Dtest=SyntheticRetrievalScenarioTest test` | JUnit guard/modelo | `pom.xml`, modelo, guard, pruebas |
-| 2 | Autorización y scope/unidad 1 | `mvn -f synthetic-retrieval/pom.xml -Dtest=SyntheticRetrievalScenarioTest test` | JUnit scope | resolución y pruebas |
-| 3 | Simulación, resultado y traza/unidad 2 | `mvn -f synthetic-retrieval/pom.xml test` | suite JUnit | simulador, consolidación, pruebas |
+| Unidad | Alcance/base                           | Test focal                                                                      | Harness            | Reversión                         |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------------- | ------------------ | --------------------------------- |
+| 1      | Runner, guard y modelo/`main`          | `mvn -f synthetic-retrieval/pom.xml -Dtest=SyntheticRetrievalScenarioTest test` | JUnit guard/modelo | `pom.xml`, modelo, guard, pruebas |
+| 2      | Autorización y scope/unidad 1          | `mvn -f synthetic-retrieval/pom.xml -Dtest=SyntheticRetrievalScenarioTest test` | JUnit scope        | resolución y pruebas              |
+| 3      | Simulación, resultado y traza/unidad 2 | `mvn -f synthetic-retrieval/pom.xml test`                                       | suite JUnit        | simulador, consolidación, pruebas |
 
 ## Fase 1: Runner, barrera y modelo — Unidad 1
 
@@ -47,3 +47,12 @@ Chain strategy: stacked-to-main
 - [x] 4.1 Comprobar e implementar `MinimizedTrace` por lista permitida, sin texto libre ni campos sensibles. Mapea `Traza estructurada`, `Minimización` y `Aislamiento observable / Contribución de otro tenant`.
 - [x] 4.2 Comprobar traza determinista y rechazo de estados incompatibles. Mapea ambos escenarios de `Determinismo e integridad semántica`; ejecutar `mvn -f synthetic-retrieval/pom.xml test`.
 - [x] 4.3 Verificar solo cinco archivos, fixtures internos y ausencia de Spring, PostgreSQL, Auth0, red, filesystem, OCR, LLM, UI/API y datos reales. Mapea `Límite exclusivamente sintético` y los no objetivos.
+
+## Fase 5. Runtime compliance remediation
+
+- [x] 5.1 Implement the connected end-to-end retrieval operation required by the uncovered scenarios.
+- [x] 5.2 Add runtime compliance for clarification traces.
+- [x] 5.3 Add runtime compliance for denial traces, preserving the DENIED information-minimization contract.
+- [x] 5.4 Enforce Gateway.required during gateway consolidation.
+- [x] 5.5 Add scenario-level tests for all 10 previously uncovered scenarios.
+- [x] 5.6 Run the complete Maven test and package verification.
