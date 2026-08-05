@@ -92,6 +92,12 @@ public final class RetrievalModel {
         UNAVAILABLE
     }
 
+    public enum TraceCategory {
+        EVALUATED,
+        CLARIFICATION,
+        DENIED
+    }
+
     public sealed interface RetrievalOutcome permits DeniedOutcome, EvaluatedOutcome {
     }
 
@@ -117,22 +123,29 @@ public final class RetrievalModel {
 
     public record MinimizedTrace(
             SnapshotId snapshotId,
-            ScopeId scopeId,
+            Optional<ScopeId> scopeId,
+            TraceCategory category,
             Optional<Coverage> coverage,
             Optional<Decision> decision,
             Optional<Impediment> impediment,
-            List<CandidateId> candidates) {
+            List<CandidateId> candidates,
+            List<ScopeId> options) {
         public MinimizedTrace {
             snapshotId = Objects.requireNonNull(snapshotId, "snapshotId");
             scopeId = Objects.requireNonNull(scopeId, "scopeId");
+            category = Objects.requireNonNull(category, "category");
             coverage = Objects.requireNonNull(coverage, "coverage");
             decision = Objects.requireNonNull(decision, "decision");
             impediment = Objects.requireNonNull(impediment, "impediment");
             candidates = orderedCandidates(candidates);
-            boolean denied = coverage.isEmpty() && decision.isEmpty() && candidates.isEmpty()
-                    && impediment.equals(Optional.of(Impediment.DENIED));
-            boolean evaluated = coverage.isPresent() && decision.isPresent() && impediment.orElse(null) != Impediment.DENIED;
-            if (!denied && !evaluated) {
+            options = options.stream().sorted(Comparator.comparing(ScopeId::value)).distinct().toList();
+            boolean denied = category == TraceCategory.DENIED && scopeId.isEmpty() && coverage.isEmpty() && decision.isEmpty()
+                    && candidates.isEmpty() && options.isEmpty() && impediment.equals(Optional.of(Impediment.DENIED));
+            boolean clarification = category == TraceCategory.CLARIFICATION && scopeId.isEmpty() && coverage.isEmpty()
+                    && decision.isEmpty() && impediment.isEmpty() && candidates.isEmpty() && !options.isEmpty();
+            boolean evaluated = category == TraceCategory.EVALUATED && scopeId.isPresent() && coverage.isPresent()
+                    && decision.isPresent() && impediment.orElse(null) != Impediment.DENIED && options.isEmpty();
+            if (!denied && !clarification && !evaluated) {
                 throw new IllegalArgumentException("trace dimensions are incompatible");
             }
             if (evaluated) {
@@ -140,10 +153,24 @@ public final class RetrievalModel {
             }
         }
 
+        public MinimizedTrace(SnapshotId snapshotId, ScopeId scopeId, Optional<Coverage> coverage,
+                Optional<Decision> decision, Optional<Impediment> impediment, List<CandidateId> candidates) {
+            this(snapshotId, Optional.of(scopeId), TraceCategory.EVALUATED, coverage, decision, impediment, candidates, List.of());
+        }
+
+        public MinimizedTrace(SnapshotId correlationId) {
+            this(correlationId, Optional.empty(), TraceCategory.DENIED, Optional.empty(), Optional.empty(),
+                    Optional.of(Impediment.DENIED), List.of(), List.of());
+        }
+
+        static MinimizedTrace clarification(SnapshotId correlationId, List<ScopeId> options) {
+            return new MinimizedTrace(correlationId, Optional.empty(), TraceCategory.CLARIFICATION, Optional.empty(),
+                    Optional.empty(), Optional.empty(), List.of(), options);
+        }
+
         static MinimizedTrace from(RetrievalSnapshot snapshot, RetrievalOutcome outcome) {
             if (outcome instanceof DeniedOutcome) {
-                return new MinimizedTrace(snapshot.id(), snapshot.scope().id(), Optional.empty(), Optional.empty(),
-                        Optional.of(Impediment.DENIED), List.of());
+                return new MinimizedTrace(snapshot.id());
             }
             EvaluatedOutcome evaluated = (EvaluatedOutcome) outcome;
             return new MinimizedTrace(snapshot.id(), snapshot.scope().id(), Optional.of(evaluated.coverage()),

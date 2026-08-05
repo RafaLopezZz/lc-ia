@@ -41,6 +41,13 @@ record SourceGrant(
     }
 }
 
+record RetrievalIntent(List<RetrievalModel.SourceId> requiredSources) {
+    RetrievalIntent {
+        requiredSources = requiredSources.stream().map(source -> Objects.requireNonNull(source, "source"))
+                .sorted(Comparator.comparing(RetrievalModel.SourceId::value)).distinct().toList();
+    }
+}
+
 record TenantCatalog(RetrievalModel.TenantId tenantId, List<RetrievalModel.Scope> scopes) {
     TenantCatalog {
         tenantId = Objects.requireNonNull(tenantId, "tenantId");
@@ -84,6 +91,11 @@ final class InMemorySimulation {
     }
 
     ScopeResolution resolve(AuthorizationContext context, List<SourceGrant> grants) {
+        return resolve(context, grants, new RetrievalIntent(List.of()));
+    }
+
+    ScopeResolution resolve(AuthorizationContext context, List<SourceGrant> grants, RetrievalIntent intent) {
+        Objects.requireNonNull(intent, "intent");
         if (!context.isValid()) {
             return new ScopeResolution.Denied();
         }
@@ -99,6 +111,7 @@ final class InMemorySimulation {
                 .collect(Collectors.toUnmodifiableSet());
         List<RetrievalModel.Scope> eligible = activeCatalog.scopes().stream()
                 .filter(scope -> grantedSources.containsAll(scope.sources()))
+                .filter(scope -> scope.sources().containsAll(intent.requiredSources()))
                 .toList();
         if (eligible.isEmpty()) {
             return new ScopeResolution.Denied();
@@ -132,8 +145,12 @@ final class InMemorySimulation {
                 .filter(contribution -> snapshot.scope().sources().contains(contribution.sourceId()))
                 .collect(Collectors.toMap(Contribution::sourceId, contribution -> contribution,
                         (left, right) -> left, java.util.LinkedHashMap::new));
-        boolean complete = snapshot.scope().sources().stream()
-                .allMatch(source -> allowed.containsKey(source) && allowed.get(source).terminal());
+        boolean requiredUnavailable = snapshot.gateways().stream().filter(RetrievalModel.Gateway::required)
+                .anyMatch(gateway -> !isTerminal(allowed, gateway.sourceId()));
+        boolean optionalUnavailable = snapshot.gateways().stream().filter(gateway -> !gateway.required())
+                .anyMatch(gateway -> !isTerminal(allowed, gateway.sourceId()));
+        boolean unavailable = requiredUnavailable || optionalUnavailable;
+        boolean complete = !unavailable;
         List<RetrievalModel.CandidateId> candidates = allowed.values().stream()
                 .filter(Contribution::terminal).flatMap(contribution -> contribution.candidates().stream()).toList();
         boolean stale = allowed.values().stream().anyMatch(Contribution::stale);
@@ -142,6 +159,10 @@ final class InMemorySimulation {
                 : candidates.isEmpty() && complete ? RetrievalModel.Decision.NOT_LOCATED_IN_SCOPE
                 : RetrievalModel.Decision.INSUFFICIENT;
         return new RetrievalModel.EvaluatedOutcome(complete ? RetrievalModel.Coverage.COMPLETE : RetrievalModel.Coverage.PARTIAL,
-                decision, complete ? java.util.Optional.empty() : java.util.Optional.of(RetrievalModel.Impediment.UNAVAILABLE), candidates);
+                decision, unavailable ? java.util.Optional.of(RetrievalModel.Impediment.UNAVAILABLE) : java.util.Optional.empty(), candidates);
+    }
+
+    private static boolean isTerminal(Map<RetrievalModel.SourceId, Contribution> contributions, RetrievalModel.SourceId sourceId) {
+        return contributions.containsKey(sourceId) && contributions.get(sourceId).terminal();
     }
 }

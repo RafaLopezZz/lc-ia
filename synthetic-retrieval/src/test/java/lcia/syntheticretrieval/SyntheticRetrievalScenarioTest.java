@@ -276,11 +276,162 @@ class SyntheticRetrievalScenarioTest {
 
     @Test
     void traceOnlyCarriesAllowedOpaqueDimensionsAndRejectsInvalidState() {
-        assertEquals(6, RetrievalModel.MinimizedTrace.class.getRecordComponents().length);
+        assertEquals(8, RetrievalModel.MinimizedTrace.class.getRecordComponents().length);
         assertThrows(IllegalArgumentException.class, () -> new RetrievalModel.MinimizedTrace(
                 new RetrievalModel.SnapshotId("snapshot-a"), new RetrievalModel.ScopeId("scope-a"),
                 Optional.of(RetrievalModel.Coverage.PARTIAL), Optional.of(RetrievalModel.Decision.NOT_LOCATED_IN_SCOPE),
                 Optional.of(RetrievalModel.Impediment.UNAVAILABLE), List.of()));
+    }
+
+    @Test
+    void endToEndOperationUsesAuthorizedIntentToSelectAnEligibleSourceScope() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId source = new RetrievalModel.SourceId("source-a");
+
+        SyntheticRetrieval.OperationResult result = execute(tenant, actor, List.of(scope("source-a", source)),
+                List.of(grant(actor, tenant, source, true)), new RetrievalIntent(List.of(source)),
+                List.of(new RetrievalModel.Gateway(source, true)),
+                List.of(contribution(tenant, source, true, false, "candidate-a")));
+
+        SyntheticRetrieval.Completed completed = (SyntheticRetrieval.Completed) result;
+        assertEquals(new RetrievalModel.ScopeId("source-a"), completed.snapshot().scope().id());
+        assertEquals(RetrievalModel.Decision.INSUFFICIENT, ((RetrievalModel.EvaluatedOutcome) completed.outcome()).decision());
+    }
+
+    @Test
+    void endToEndOperationSelectsTheSmallestFullyAuthorizedCollectionForTheIntent() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId sourceA = new RetrievalModel.SourceId("source-a");
+        RetrievalModel.SourceId sourceB = new RetrievalModel.SourceId("source-b");
+
+        SyntheticRetrieval.Completed result = (SyntheticRetrieval.Completed) execute(tenant, actor,
+                List.of(scope("collection-wide", sourceA, sourceB), scope("collection-narrow", sourceA)),
+                List.of(grant(actor, tenant, sourceA, true), grant(actor, tenant, sourceB, true)),
+                new RetrievalIntent(List.of(sourceA)), List.of(new RetrievalModel.Gateway(sourceA, true)),
+                List.of(contribution(tenant, sourceA, true, false)));
+
+        assertEquals(new RetrievalModel.ScopeId("collection-narrow"), result.snapshot().scope().id());
+        assertEquals(RetrievalModel.Decision.NOT_LOCATED_IN_SCOPE, ((RetrievalModel.EvaluatedOutcome) result.outcome()).decision());
+    }
+
+    @Test
+    void endToEndOperationDoesNotTreatAnUnauthorizedCollectionAsAnAuthorizedPartialView() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId required = new RetrievalModel.SourceId("source-required");
+        RetrievalModel.SourceId optional = new RetrievalModel.SourceId("source-optional");
+
+        SyntheticRetrieval.OperationResult result = execute(tenant, actor, List.of(scope("collection-a", required, optional)),
+                List.of(grant(actor, tenant, required, true)), new RetrievalIntent(List.of(required)),
+                List.of(new RetrievalModel.Gateway(required, true), new RetrievalModel.Gateway(optional, false)), List.of());
+
+        assertEquals(new SyntheticRetrieval.Denied(new RetrievalModel.MinimizedTrace(new RetrievalModel.SnapshotId("snapshot-a"))), result);
+    }
+
+    @Test
+    void endToEndOperationEmitsAnAuthorizedClarificationTraceForEquivalentScopes() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId sourceA = new RetrievalModel.SourceId("source-a");
+        RetrievalModel.SourceId sourceB = new RetrievalModel.SourceId("source-b");
+
+        SyntheticRetrieval.OperationResult result = execute(tenant, actor, List.of(scope("scope-b", sourceB), scope("scope-a", sourceA)),
+                List.of(grant(actor, tenant, sourceA, true), grant(actor, tenant, sourceB, true)), new RetrievalIntent(List.of()), List.of(), List.of());
+
+        SyntheticRetrieval.Clarification clarification = (SyntheticRetrieval.Clarification) result;
+        assertEquals(List.of(new RetrievalModel.ScopeId("scope-a"), new RetrievalModel.ScopeId("scope-b")), clarification.trace().options());
+        assertEquals(RetrievalModel.TraceCategory.CLARIFICATION, clarification.trace().category());
+    }
+
+    @Test
+    void endToEndOperationProducesDeterministicClarificationForTheSameAuthorizedIntent() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId sourceA = new RetrievalModel.SourceId("source-a");
+        RetrievalModel.SourceId sourceB = new RetrievalModel.SourceId("source-b");
+        List<RetrievalModel.Scope> scopes = List.of(scope("scope-b", sourceB), scope("scope-a", sourceA));
+        List<SourceGrant> grants = List.of(grant(actor, tenant, sourceA, true), grant(actor, tenant, sourceB, true));
+
+        assertEquals(execute(tenant, actor, scopes, grants, new RetrievalIntent(List.of()), List.of(), List.of()),
+                execute(tenant, actor, scopes, grants, new RetrievalIntent(List.of()), List.of(), List.of()));
+    }
+
+    @Test
+    void clarificationTraceDoesNotExposeFixturePayloads() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId sourceA = new RetrievalModel.SourceId("source-a");
+        RetrievalModel.SourceId sourceB = new RetrievalModel.SourceId("source-b");
+
+        SyntheticRetrieval.Clarification result = (SyntheticRetrieval.Clarification) execute(tenant, actor,
+                List.of(scope("scope-b", sourceB), scope("scope-a", sourceA)),
+                List.of(grant(actor, tenant, sourceA, true), grant(actor, tenant, sourceB, true)), new RetrievalIntent(List.of()), List.of(), List.of());
+
+        assertFalse(Stream.of(RetrievalModel.MinimizedTrace.class.getRecordComponents())
+                .map(component -> component.getName().toLowerCase())
+                .anyMatch(name -> name.contains("content") || name.contains("path") || name.contains("secret") || name.contains("query")));
+        assertEquals(List.of(new RetrievalModel.ScopeId("scope-a"), new RetrievalModel.ScopeId("scope-b")), result.trace().options());
+    }
+
+    @Test
+    void endToEndOperationEmitsOnlyTheSafeDeniedTraceForInvalidAuthorization() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId source = new RetrievalModel.SourceId("source-a");
+
+        SyntheticRetrieval.Denied result = (SyntheticRetrieval.Denied) execute(tenant, actor, List.of(scope("scope-a", source)),
+                List.of(grant(actor, tenant, source, true)), new RetrievalIntent(List.of(source)),
+                List.of(new RetrievalModel.Gateway(source, true)), List.of(), false);
+
+        assertEquals(RetrievalModel.TraceCategory.DENIED, result.trace().category());
+        assertEquals(Optional.of(RetrievalModel.Impediment.DENIED), result.trace().impediment());
+    }
+
+    @Test
+    void deniedTraceOmitsScopeCoverageDecisionAndCandidates() {
+        RetrievalModel.MinimizedTrace trace = new RetrievalModel.MinimizedTrace(new RetrievalModel.SnapshotId("snapshot-a"));
+
+        assertEquals(Optional.empty(), trace.scopeId());
+        assertEquals(Optional.empty(), trace.coverage());
+        assertEquals(Optional.empty(), trace.decision());
+        assertEquals(List.of(), trace.candidates());
+    }
+
+    @Test
+    void requiredGatewayAbsenceEscalatesAnOtherwiseAvailableResult() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.SourceId required = new RetrievalModel.SourceId("source-required");
+        RetrievalModel.SourceId available = new RetrievalModel.SourceId("source-available");
+        RetrievalModel.EvaluatedOutcome result = (RetrievalModel.EvaluatedOutcome) new InMemorySimulation(List.of()).consolidate(
+                snapshot(tenant, "snapshot-a", List.of(new RetrievalModel.Gateway(required, true), new RetrievalModel.Gateway(available, false))),
+                List.of(contribution(tenant, available, true, false, "candidate-a")));
+
+        assertEquals(RetrievalModel.Coverage.PARTIAL, result.coverage());
+        assertEquals(Optional.of(RetrievalModel.Impediment.UNAVAILABLE), result.impediment());
+        assertEquals(List.of(new RetrievalModel.CandidateId("candidate-a")), result.candidates());
+    }
+
+    @Test
+    void snapshotFreezesResolvedScopeAndGatewayConfigurationBeforeConsolidation() {
+        RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
+        RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
+        RetrievalModel.SourceId source = new RetrievalModel.SourceId("source-a");
+        List<RetrievalModel.Scope> scopes = new ArrayList<>(List.of(scope("scope-a", source)));
+        List<RetrievalModel.Gateway> gateways = new ArrayList<>(List.of(new RetrievalModel.Gateway(source, true)));
+        SyntheticRetrieval.Scenario scenario = new SyntheticRetrieval.Scenario(SyntheticRetrieval.InputProvenance.SYNTHETIC,
+                SyntheticRetrieval.SimulationKind.IN_MEMORY_SYNTHETIC, context(actor, tenant, true),
+                List.of(grant(actor, tenant, source, true)), new RetrievalIntent(List.of(source)),
+                new RetrievalModel.SnapshotId("snapshot-a"), gateways, List.of(contribution(tenant, source, true, false)));
+        SyntheticRetrieval.Operation operation = new SyntheticRetrieval.Operation(
+                new InMemorySimulation(List.of(new TenantCatalog(tenant, scopes))));
+        scopes.clear();
+        gateways.clear();
+        SyntheticRetrieval.Completed result = (SyntheticRetrieval.Completed) operation.execute(scenario);
+
+        assertEquals(new RetrievalModel.ScopeId("scope-a"), result.trace().scopeId().orElseThrow());
+        assertEquals(RetrievalModel.Coverage.COMPLETE, ((RetrievalModel.EvaluatedOutcome) result.outcome()).coverage());
     }
 
     private static Stream<List<InMemorySimulation.Contribution>> permutedContributions() {
@@ -289,6 +440,33 @@ class SyntheticRetrievalScenarioTest {
         RetrievalModel.SourceId source = new RetrievalModel.SourceId("source-a");
         return Stream.of(List.of(contribution(other, source, true, false, "candidate-cross"), contribution(tenant, source, true, false, "candidate-b", "candidate-a")),
                 List.of(contribution(tenant, source, true, false, "candidate-a", "candidate-b"), contribution(other, source, true, false, "candidate-cross")));
+    }
+
+    private static SyntheticRetrieval.OperationResult execute(
+            RetrievalModel.TenantId tenant,
+            RetrievalModel.ActorId actor,
+            List<RetrievalModel.Scope> scopes,
+            List<SourceGrant> grants,
+            RetrievalIntent intent,
+            List<RetrievalModel.Gateway> gateways,
+            List<InMemorySimulation.Contribution> contributions) {
+        return execute(tenant, actor, scopes, grants, intent, gateways, contributions, true);
+    }
+
+    private static SyntheticRetrieval.OperationResult execute(
+            RetrievalModel.TenantId tenant,
+            RetrievalModel.ActorId actor,
+            List<RetrievalModel.Scope> scopes,
+            List<SourceGrant> grants,
+            RetrievalIntent intent,
+            List<RetrievalModel.Gateway> gateways,
+            List<InMemorySimulation.Contribution> contributions,
+            boolean membershipActive) {
+        return new SyntheticRetrieval.Operation(new InMemorySimulation(List.of(new TenantCatalog(tenant, scopes)))).execute(
+                new SyntheticRetrieval.Scenario(SyntheticRetrieval.InputProvenance.SYNTHETIC,
+                        SyntheticRetrieval.SimulationKind.IN_MEMORY_SYNTHETIC,
+                        context(actor, tenant, membershipActive), grants, intent,
+                        new RetrievalModel.SnapshotId("snapshot-a"), gateways, contributions));
     }
 
     private static RetrievalModel.RetrievalSnapshot snapshot(RetrievalModel.TenantId tenant, String id, List<RetrievalModel.Gateway> gateways) {
