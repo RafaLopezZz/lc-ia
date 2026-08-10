@@ -284,6 +284,12 @@ class SyntheticRetrievalScenarioTest {
     }
 
     @Test
+    void traceSchemaProhibitsFactualClaims() {
+        assertFalse(Stream.of(RetrievalModel.MinimizedTrace.class.getRecordComponents())
+                .anyMatch(component -> component.getType() == String.class));
+    }
+
+    @Test
     void endToEndOperationUsesAuthorizedIntentToSelectAnEligibleSourceScope() {
         RetrievalModel.TenantId tenant = new RetrievalModel.TenantId("tenant-a");
         RetrievalModel.ActorId actor = new RetrievalModel.ActorId("actor-a");
