@@ -1,0 +1,13 @@
+$env:JIRA_BASE_URL = "https://TU-SITIO.atlassian.net"
+$env:JIRA_EMAIL = "tu-correo@ejemplo.com"
+$env:JIRA_API_TOKEN = "TU_TOKEN"
+
+### DRY & RUN
+& "D:\Leovinci\Proyectos LC\LC-IA_0.2\docs\jira\Import-LCIAJiraBacklog-v3.ps1" `
+    -CsvPath "D:\Leovinci\Proyectos LC\LC-IA_0.2\docs\jira\LC-IA-jira-import-M0.3.1-scaffold.csv" `
+    -ProjectKey "LCIA"
+
+& "D:\Leovinci\Proyectos LC\LC-IA_0.2\docs\jira\Import-LCIAJiraBacklog-v3.ps1" `
+    -CsvPath "D:\Leovinci\Proyectos LC\LC-IA_0.2\docs\jira\LC-IA-jira-import-M0.3.1-scaffold.csv" `
+    -ProjectKey "LCIA" `
+    -Execute

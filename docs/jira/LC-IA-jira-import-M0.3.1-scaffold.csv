@@ -1,0 +1,40 @@
+Summary,Work Type,Work item ID,Parent,Description,Priority,Labels
+M0 — Base de ingeniería reproducible,Epic,1,,"Objetivo:
+Convertir el núcleo sintético existente en una base verde, verificable y apta para crecer sin arrastrar deuda de build ni ambigüedad de arquitectura.
+
+Gate de salida:
+El repositorio compila y empaqueta desde CLI; los 30 escenarios sintéticos pasan; CI reproduce el resultado; el cambio sintético queda cerrado o explícitamente preparado para archivo.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.",Highest,lcia-m0-foundation
+M0.3.1 — Crear scaffold mínimo de aplicación LC-IA,Task,78,1,"Objetivo:
+Crear el scaffold mínimo de la aplicación real LC-IA sobre Spring Boot, separado de `synthetic-retrieval`, para disponer de una base ejecutable y empaquetable sobre la que aplicar las guardas de arquitectura y construir el primer incremento funcional real.
+
+Criterios de aceptación:
+- Existe una aplicación Spring Boot real separada de `synthetic-retrieval`.
+- El paquete raíz de la aplicación es `com.leovinci.leos`.
+- La aplicación arranca desde CLI sin requerir infraestructura externa.
+- `mvn test` finaliza correctamente.
+- `mvn package` genera un JAR ejecutable correctamente.
+- El scaffold usa el toolchain Java/Maven ya fijado por M0.1.
+- Solo se crea la estructura mínima necesaria para bootstrap y prueba de contexto; no se crean módulos de dominio vacíos por anticipación.
+- No se introducen JPA, PostgreSQL, Auth0, controladores REST, gateways, LLM ni otras capacidades funcionales en este ticket.
+- `synthetic-retrieval` permanece como laboratorio independiente y no se convierte incidentalmente en la aplicación principal.
+
+Pruebas TDD:
+- RED: demostrar inicialmente que no existe una aplicación LC-IA arrancable/empaquetable fuera de `synthetic-retrieval`.
+- GREEN: crear el scaffold mínimo y añadir un smoke test de contexto de Spring Boot.
+- Ejecutar `mvn test` y `mvn package` desde CLI.
+- Verificar que el JAR arranca y termina de forma controlada sin dependencias externas.
+
+Dependencias:
+M0.1 y M0.3.
+
+Restricciones de arquitectura:
+- No convertir este ticket en el diseño completo del monolito modular.
+- No crear paquetes `tenant`, `leo`, `run`, `document`, `tool`, `shared`, etc. hasta que exista código real que los necesite.
+- No crear `shared` como cajón de utilidades.
+- No añadir dependencias de infraestructura por anticipación.
+- Mantener `synthetic-retrieval` separado como laboratorio ejecutable de contratos.",High,lcia-m0-foundation;lcia-scaffold

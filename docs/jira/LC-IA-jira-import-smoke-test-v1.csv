@@ -1,0 +1,4 @@
+Summary,Work Type,Status,Work item ID,Parent,Description,Priority,Labels
+[IMPORT TEST] LC-IA — Jerarquía de prueba,Epic,Backlog,900001,,"Elemento temporal para validar la importación CSV de Jira: tipo Epic, estado Backlog y relaciones Parent. Eliminar después de validar la importación.",Medium,lcia-import-smoke-test
+[IMPORT TEST] Story hija del Epic,Story,Backlog,900002,900001,Elemento temporal para comprobar que Jira importa una Story de nivel estándar como hija del Epic mediante Work item ID + Parent.,Medium,lcia-import-smoke-test
+[IMPORT TEST] Task hija del Epic,Task,Backlog,900003,900001,Elemento temporal para comprobar que Jira importa una Task de nivel estándar como hija del Epic mediante Work item ID + Parent.,Medium,lcia-import-smoke-test

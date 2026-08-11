@@ -1,0 +1,1201 @@
+﻿"Work type","Summary","Work item ID","Parent","Description","Priority","Labels"
+"Epic","M0 — Base de ingeniería reproducible","1","","Objetivo:
+Convertir el núcleo sintético existente en una base verde, verificable y apta para crecer sin arrastrar deuda de build ni ambigüedad de arquitectura.
+
+Gate de salida:
+El repositorio compila y empaqueta desde CLI; los 30 escenarios sintéticos pasan; CI reproduce el resultado; el cambio sintético queda cerrado o explícitamente preparado para archivo.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","Highest","lcia-m0-foundation"
+"Task","M0.1 — Fijar toolchain Java/Maven soportado","2","1","Objetivo:
+Definir y hacer reproducible la versión de Java y Maven usada por el proyecto, eliminando el fallo actual de release no disponible.
+
+Criterios de aceptación:
+- `java -version` y `mvn -version` muestran versiones compatibles.
+- `mvn clean test` no falla por toolchain.
+- IDE y CLI usan el mismo JDK.
+- La versión elegida queda documentada en el repositorio.
+
+Pruebas TDD:
+- Primero reproducir el fallo actual.
+- Añadir una comprobación automatizable de versión o toolchain.
+- Ejecutar build limpio tras el cambio.
+
+Dependencias:
+Ninguna adicional.
+
+Restricciones de arquitectura:
+- No introducir Java 25 si no existe una necesidad funcional demostrada.
+- Preferir una versión LTS compatible con Spring Boot y el entorno.","Highest","lcia-m0-foundation"
+"Task","M0.2 — Verificar el núcleo synthetic-retrieval","3","1","Objetivo:
+Demostrar que el núcleo sintético representa de forma estable las reglas de tenant, ámbito, cobertura y consolidación ya especificadas.
+
+Criterios de aceptación:
+- La matriz contiene 30 escenarios.
+- Los 30 tests pasan.
+- `mvn package` finaliza correctamente.
+- `git diff --check` no devuelve errores.
+- UNEQUIVOCAL no se declara implementado si sigue fuera del dominio sintético.
+
+Pruebas TDD:
+- Ejecutar la suite completa antes de modificar.
+- Caracterizar cualquier comportamiento dudoso con test antes de tocar implementación.
+- Guardar evidencia del resultado final.
+
+Dependencias:
+M0.1.","Highest","lcia-m0-foundation"
+"Task","M0.3 — Cerrar el cambio SDD sintético","4","1","Objetivo:
+Cerrar formalmente el cambio `synthetic-document-retrieval-foundation` sin falsear el mecanismo de OpenSpec.
+
+Criterios de aceptación:
+- Specs, implementación y evidencia no se contradicen.
+- El cambio queda archivado mediante mecanismo confirmado o marcado como verificado y listo para archivo.
+- No se modifica código funcional incidentalmente.
+- Los riesgos residuales quedan visibles.
+
+Pruebas TDD:
+- Volver a ejecutar test/package después de los cambios de cierre.
+- Comprobar que ninguna edición documental rompe el mapeo de 30 escenarios.
+
+Dependencias:
+M0.2.","High","lcia-m0-foundation"
+"Task","M0.4 — Crear guardas de arquitectura base","5","1","Objetivo:
+Introducir tests de arquitectura que protejan DDD/hexagonal desde el primer incremento real.
+
+Criterios de aceptación:
+- El dominio no depende de Spring.
+- El dominio no depende de JPA.
+- Los adaptadores no son referenciados desde dominio.
+- Los controladores dependen de puertos/casos de uso y no de repositorios concretos.
+- Las reglas se ejecutan en CI.
+
+Pruebas TDD:
+- Escribir ArchUnit tests que fallen con una violación controlada o validar contra la estructura actual.
+- Dejar los tests verdes con la estructura objetivo.
+
+Dependencias:
+M0.1.
+
+Restricciones de arquitectura:
+- Las reglas deben proteger dependencias, no imponer una jerarquía artificial de paquetes.
+- No crear `shared` como cajón de utilidades.","High","lcia-m0-foundation"
+"Task","M0.5 — Configurar CI mínima de calidad","6","1","Objetivo:
+Hacer que cada push/PR ejecute automáticamente el build y las pruebas críticas.
+
+Criterios de aceptación:
+- CI ejecuta build limpio.
+- CI ejecuta tests unitarios y de arquitectura.
+- Un fallo bloquea el merge.
+- El workflow no depende de secretos innecesarios.
+- La versión de Java coincide con M0.1.
+
+Pruebas TDD:
+- Provocar temporalmente un fallo en rama local o validar que un test fallido marca el job en rojo.
+- Restaurar y verificar pipeline verde.
+
+Dependencias:
+M0.1, M0.2 y M0.4.","High","lcia-m0-foundation"
+"Epic","M1 — Walking skeleton remoto ↔ gateway","7","","Objetivo:
+Recorrer el sistema real con dos procesos: el remoto entrega una búsqueda y un gateway devuelve candidatos sintéticos minimizados.
+
+Gate de salida:
+Un E2E levanta remoto y gateway, entrega trabajo por long-polling, ejecuta una búsqueda sintética y produce un resultado determinista sin rutas ni contenido documental.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","Highest","lcia-m1-walking-skeleton"
+"Task","M1.1 — Definir contratos mínimos de búsqueda y trabajo","8","7","Objetivo:
+Modelar contratos tipados para SearchRequest, WorkItem, Candidate, GatewayContribution y AggregateSearchResult.
+
+Criterios de aceptación:
+- Los contratos expresan tenant, gateway, fuentes autorizadas, correlación, idempotencia, emisión/expiración y versión donde corresponda.
+- Candidate no tiene ruta, bytes ni texto documental.
+- No se usan `Map<String,Object>`.
+- Los estados se modelan con tipos/enums explícitos.
+
+Pruebas TDD:
+- Tests unitarios de invariantes y serialización del contrato.
+- Test negativo: un candidato no puede construirse sin procedencia/referencia opaca.
+
+Dependencias:
+M0 completo.
+
+Restricciones de arquitectura:
+- Dominio/protocolo no depende de HTTP.
+- No fijar todavía endpoints definitivos ni criptografía.","Highest","lcia-m1-walking-skeleton"
+"Task","M1.2 — Implementar cola remota de trabajo en memoria","9","7","Objetivo:
+Permitir que el servicio remoto registre y entregue trabajo pendiente a un gateway sin persistencia definitiva.
+
+Criterios de aceptación:
+- Un work item se asigna solo al gateway destinatario.
+- La misma idempotency key representa una única operación lógica.
+- Un trabajo expirado no se entrega.
+- El estado puede consultarse por correlación.
+
+Pruebas TDD:
+- Unit tests del caso de uso con reloj fake.
+- Test de idempotencia.
+- Test de expiración.
+
+Dependencias:
+M1.1.","High","lcia-m1-walking-skeleton"
+"Story","M1.3 — Implementar long-poll básico del gateway","10","7","Objetivo:
+Permitir que el gateway inicie una conexión HTTPS saliente y espere trabajo compatible.
+
+Criterios de aceptación:
+- El gateway no requiere puerto entrante.
+- Un poll sin trabajo termina de forma controlada.
+- Un poll con trabajo devuelve una orden válida.
+- La reconexión normal no duplica la operación lógica.
+
+Pruebas TDD:
+- Integration test remoto-gateway.
+- Test de poll vacío.
+- Test de reconexión.
+
+Dependencias:
+M1.2.
+
+Restricciones de arquitectura:
+- Sin WebSocket, broker ni túnel permanente.","Highest","lcia-m1-walking-skeleton"
+"Task","M1.4 — Crear buscador sintético detrás de un puerto","11","7","Objetivo:
+Conectar el gateway a una fuente sintética mediante un puerto sustituible por el futuro índice local.
+
+Criterios de aceptación:
+- El buscador recibe solo fuentes autorizadas.
+- Devuelve candidatos deterministas.
+- Puede producir 0, 1 o varios candidatos.
+- No conoce HTTP ni el servicio remoto.
+
+Pruebas TDD:
+- Unit tests del puerto/adaptador.
+- Casos 0/1/N candidatos.
+
+Dependencias:
+M1.1.
+
+Restricciones de arquitectura:
+- El adaptador sintético es infraestructura de test, no dominio.","High","lcia-m1-walking-skeleton"
+"Task","M1.5 — Emitir referencias opacas y minimizar candidatos","12","7","Objetivo:
+Asegurar que todo candidato que abandona el gateway sea reconocible sin revelar rutas o contenido local.
+
+Criterios de aceptación:
+- La referencia opaca no contiene una ruta reversible.
+- La respuesta remota no incluye texto extraído/OCR/bytes.
+- La procedencia presentable es mínima.
+- La versión/huella puede correlacionarse sin revelar la ubicación.
+
+Pruebas TDD:
+- Test de contrato que inspecciona campos serializados.
+- Test que rechaza payload con ruta local en el DTO remoto.
+
+Dependencias:
+M1.4.","Highest","lcia-m1-walking-skeleton"
+"Story","M1.6 — Cerrar primer E2E de búsqueda remota","13","7","Objetivo:
+Demostrar el flujo completo con un tenant, un actor, un gateway y una fuente sintética.
+
+Criterios de aceptación:
+- La búsqueda se crea en remoto.
+- El gateway recibe y ejecuta el trabajo.
+- El remoto recibe la contribución.
+- El resultado final distingue candidato, ambigüedad y cero resultados.
+- No hay rutas ni contenido documental en la frontera remota.
+
+Pruebas TDD:
+- E2E happy path.
+- E2E varios candidatos.
+- E2E cero candidatos.
+- E2E gateway no disponible.
+
+Dependencias:
+M1.2-M1.5.","Highest","lcia-m1-walking-skeleton"
+"Epic","M2 — Fuente local e índice mínimo persistente","14","","Objetivo:
+Sustituir la fuente sintética por una carpeta registrada y un índice local persistente, todavía centrado en metadatos.
+
+Gate de salida:
+Altas, cambios y borrados en una carpeta de prueba se reflejan en búsquedas tras reconciliación; el índice sobrevive a reinicios y ninguna ruta sale del gateway.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","High","lcia-m2-local-index"
+"Story","M2.1 — Registrar una carpeta como fuente local segura","15","14","Objetivo:
+Permitir configurar una raíz local/compartida desde el gateway sin aceptar rutas arbitrarias desde una consulta.
+
+Criterios de aceptación:
+- La raíz se configura localmente.
+- La fuente queda ligada a tenant/gateway.
+- Una consulta no puede cambiar la raíz.
+- Escapes por symlink/junction se rechazan o quedan bajo una política explícita.
+- Una fuente inválida no se marca como lista.
+
+Pruebas TDD:
+- Tests con raíz válida e inválida.
+- Test de intento de escape.
+- Test de ruta aportada por consulta ignorada como autoridad.
+
+Dependencias:
+M1 completo.","Highest","lcia-m2-local-index"
+"Task","M2.2 — Modelar identidad y huella local de documento","16","14","Objetivo:
+Definir cómo el gateway correlaciona una versión observable de un documento sin asumir identidad global.
+
+Criterios de aceptación:
+- La identidad queda acotada por tenant, gateway y fuente.
+- Existe una huella/version observable.
+- Cambio de versión puede detectarse.
+- No se usa la ruta como identificador remoto.
+
+Pruebas TDD:
+- Tests de misma ruta/cambio de contenido.
+- Tests de mismo nombre en dos fuentes.
+- Test de dos archivos con mismos bytes conservando identidad local separada si la política así lo dicta.
+
+Dependencias:
+M2.1.","High","lcia-m2-local-index"
+"Task","M2.3 — Implementar reconciliación inicial de la fuente","17","14","Objetivo:
+Enumerar la raíz de forma acotada y clasificar altas, cambios, sin cambio, borrados confirmados e indeterminados.
+
+Criterios de aceptación:
+- Una reconciliación incompleta no provoca borrados masivos.
+- Los fallos por archivo se aíslan.
+- El resultado de reconciliación es observable.
+- Se puede ejecutar repetidamente de forma idempotente.
+
+Pruebas TDD:
+- Tests add/change/delete.
+- Test de fuente temporalmente inaccesible.
+- Test de archivo que cambia durante el proceso.
+
+Dependencias:
+M2.1 y M2.2.","High","lcia-m2-local-index"
+"Task","M2.4 — Persistir índice local de metadatos","18","14","Objetivo:
+Guardar localmente las entradas necesarias para buscar por nombre y metadatos tras reiniciar el gateway.
+
+Criterios de aceptación:
+- El índice es persistente.
+- Toda entrada incluye tenant/gateway/fuente.
+- No se mezcla información entre fuentes.
+- El almacenamiento queda detrás de un puerto.
+
+Pruebas TDD:
+- Integration test de persistencia/reinicio.
+- Test de aislamiento tenant-gateway-fuente.
+- Test de migración/esquema inicial.
+
+Dependencias:
+M2.2 y M2.3.
+
+Restricciones de arquitectura:
+- No introducir una base vectorial.
+- La elección técnica debe quedar encapsulada y ser sustituible.","High","lcia-m2-local-index"
+"Story","M2.5 — Buscar por nombre y metadatos en el índice local","19","14","Objetivo:
+Responder consultas usando el índice persistente sin tocar el sistema de archivos en cada búsqueda.
+
+Criterios de aceptación:
+- La búsqueda usa únicamente particiones autorizadas.
+- El resultado es determinista con las mismas entradas.
+- Se limita el número de candidatos.
+- La consulta no provoca extracción/OCR.
+
+Pruebas TDD:
+- Integration tests de búsqueda.
+- Test de filtros por fuente.
+- Test de límite de candidatos.
+
+Dependencias:
+M2.4.","High","lcia-m2-local-index"
+"Task","M2.6 — Invalidar referencias obsoletas","20","14","Objetivo:
+Hacer que una referencia opaca deje de ser válida ante cambio/borrado/revocación de la versión subyacente.
+
+Criterios de aceptación:
+- Cambiar el documento invalida la referencia previa.
+- Borrar el documento la invalida.
+- La resolución de una referencia stale no revela rutas ni existencia fuera del alcance.
+- La nueva versión emite una referencia distinta o equivalente segura.
+
+Pruebas TDD:
+- Tests de referencia vigente/stale.
+- Test de borrado.
+- Test de cambio entre búsqueda y resolución.
+
+Dependencias:
+M2.2, M2.4 y M1.5.","Highest","lcia-m2-local-index"
+"Story","M2.7 — E2E de búsqueda sobre carpeta real de prueba","21","14","Objetivo:
+Repetir el walking skeleton usando una carpeta de test y el índice persistente.
+
+Criterios de aceptación:
+- Agregar un archivo lo hace recuperable.
+- Modificarlo actualiza versión.
+- Borrarlo lo retira.
+- Reiniciar gateway conserva índice.
+- El remoto sigue sin recibir rutas o texto.
+
+Pruebas TDD:
+- E2E add/search.
+- E2E update/search.
+- E2E delete/search.
+- E2E restart/search.
+
+Dependencias:
+M2.1-M2.6.","Highest","lcia-m2-local-index"
+"Epic","M3 — Autorización de dominio y resolución de ámbito","22","","Objetivo:
+Convertir tenant, membership y source grants en fronteras de seguridad verificadas en remoto y de nuevo en local.
+
+Gate de salida:
+Dos tenants y dos actores no pueden observar ni recuperar fuentes cruzadas; el ámbito se resuelve determinísticamente y queda congelado antes de buscar.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","Highest","lcia-m3-authz-scope"
+"Task","M3.1 — Modelar Actor, Tenant y Membership","23","22","Objetivo:
+Construir el núcleo de identidad interna y pertenencia a tenant sin depender de Auth0.
+
+Criterios de aceptación:
+- Actor interno tiene identidad estable.
+- Membership tiene estado y rol dentro de un tenant.
+- Un actor puede pertenecer a varios tenants.
+- Email no es clave de identidad ni prueba de membership.
+
+Pruebas TDD:
+- Unit tests de invariantes.
+- Test actor con múltiples memberships.
+- Test membership revocada.
+
+Dependencias:
+M0 completo.
+
+Restricciones de arquitectura:
+- Dominio sin Spring Security/Auth0.","Highest","lcia-m3-authz-scope"
+"Task","M3.2 — Modelar SourceGrant y fuente administrable","24","22","Objetivo:
+Separar pertenencia al tenant de autorización sobre fuentes concretas.
+
+Criterios de aceptación:
+- Membership no concede acceso documental implícito.
+- SourceGrant exige actor/fuente del mismo tenant.
+- Retirar grant elimina acceso efectivo.
+- tenant_admin no obtiene acceso documental por rol.
+
+Pruebas TDD:
+- Unit tests de grants.
+- Test admin sin grant.
+- Test grant cross-tenant rechazado.
+
+Dependencias:
+M3.1 y M2.1.","Highest","lcia-m3-authz-scope"
+"Task","M3.3 — Implementar contexto de tenant activo","25","22","Objetivo:
+Resolver y revalidar el tenant activo de cada operación sin confiar en datos libres del cliente.
+
+Criterios de aceptación:
+- Solo puede activarse una membership vigente.
+- Cambiar tenant descarta referencias/resultados sensibles del anterior.
+- Tenant de URL/body/header no sustituye el contexto autenticado.
+- Contexto revocado falla cerrado.
+
+Pruebas TDD:
+- Unit/integration tests tenant activo.
+- Test tenant mismatch.
+- Test membership revocada durante operación.
+
+Dependencias:
+M3.1.","High","lcia-m3-authz-scope"
+"Task","M3.4 — Implementar source scope y collection scope mínimos","26","22","Objetivo:
+Representar el catálogo mínimo de ámbitos confirmado para el MVP.
+
+Criterios de aceptación:
+- Cada fuente crea un source scope.
+- Collection scope referencia fuentes sin duplicarlas.
+- No hay jerarquía ni herencia.
+- Una colección solo es elegible si el actor conserva grants para todas sus fuentes.
+- Opcionalidad no concede permisos.
+
+Pruebas TDD:
+- Unit tests source scope.
+- Unit tests collection scope.
+- Test colección con grant faltante.
+
+Dependencias:
+M3.2.","Medium","lcia-m3-authz-scope"
+"Story","M3.5 — Resolver determinísticamente el menor ámbito autorizado","27","22","Objetivo:
+Integrar las reglas ya caracterizadas en synthetic-retrieval con el dominio real de permisos y scopes.
+
+Criterios de aceptación:
+- Las pistas solo reducen/aclaran.
+- Un único ámbito válido se congela.
+- Varios ámbitos equivalentes generan aclaración.
+- Ninguno autorizado produce denegación sin revelar alternativas.
+- Multiámbito exige selección explícita.
+
+Pruebas TDD:
+- Migrar/caracterizar escenarios sintéticos relevantes.
+- Tests de 1/varios/ningún scope.
+- Test de hint hacia fuente no autorizada.
+
+Dependencias:
+M3.2-M3.4 y M0.2.","Highest","lcia-m3-authz-scope"
+"Task","M3.6 — Revalidar autorización en el gateway local","28","22","Objetivo:
+Hacer que el gateway no confíe ciegamente en una orden autorizada por remoto.
+
+Criterios de aceptación:
+- Gateway valida vínculo tenant-gateway.
+- Solo busca en fuentes registradas localmente y autorizadas.
+- Una orden con fuente ajena se rechaza.
+- Revocaciones conocidas se aplican antes de buscar.
+
+Pruebas TDD:
+- Integration tests con orden válida/ajena/revocada.
+- Test de fuente no registrada.
+- Test de tenant mismatch.
+
+Dependencias:
+M3.2 y M1.3.","Highest","lcia-m3-authz-scope"
+"Story","M3.7 — Demostrar indistinguibilidad entre tenants","29","22","Objetivo:
+Probar que la existencia de documentos o fuentes de otro tenant no es observable desde un actor no autorizado.
+
+Criterios de aceptación:
+- Mismo nombre de documento en dos tenants no cruza resultados.
+- Fuentes no asignadas no aparecen en listados/conteos/sugerencias.
+- DENIED no incluye candidatos ni detalles sensibles.
+- El resultado cross-tenant es indistinguible de la inexistencia según el contrato vigente.
+
+Pruebas TDD:
+- E2E con dos tenants y nombres idénticos.
+- Tests de respuestas minimizadas.
+- Tests de timing solo si existe una diferencia deliberada relevante.
+
+Dependencias:
+M3.5 y M3.6.","Highest","lcia-m3-authz-scope"
+"Epic","M4 — Autenticación real con Auth0","30","","Objetivo:
+Sustituir el adaptador de identidad de desarrollo por Auth0 manteniendo LC-IA como autoridad de actor, tenant, roles y grants.
+
+Gate de salida:
+Una identidad Auth0 válida resuelve un ActorContext interno; tokens inválidos no crean contexto; la suite de autorización sigue pasando sin trasladar reglas de negocio a Auth0.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","High","lcia-m4-auth0"
+"Task","M4.1 — Configurar Resource Server y validación de token","31","30","Objetivo:
+Validar criptográficamente tokens emitidos para LC-IA con issuer, audience y expiración correctos.
+
+Criterios de aceptación:
+- Issuer/audience incorrectos se rechazan.
+- Token expirado se rechaza.
+- Firma inválida se rechaza.
+- No se registran tokens completos en logs.
+
+Pruebas TDD:
+- Integration tests de seguridad con tokens válidos e inválidos.
+- Test de ausencia de autenticación.
+
+Dependencias:
+M3.1 y M0.5.","High","lcia-m4-auth0"
+"Task","M4.2 — Resolver issuer+subject a Actor interno","32","30","Objetivo:
+Mapear una identidad autenticada externa a un actor estable de LC-IA.
+
+Criterios de aceptación:
+- La clave externa es issuer/provider + subject.
+- Email y móvil son atributos no autoritativos.
+- Identidad desconocida no obtiene membership por inferencia.
+- Variación de email no crea un actor nuevo si subject es el mismo.
+
+Pruebas TDD:
+- Unit tests del resolver.
+- Integration test identidad conocida/desconocida.
+- Test cambio de email.
+
+Dependencias:
+M4.1 y M3.1.","Highest","lcia-m4-auth0"
+"Story","M4.3 — Construir ActorContext desde autenticación y tenant activo","33","30","Objetivo:
+Conectar autenticación real con memberships, roles y source grants del dominio.
+
+Criterios de aceptación:
+- ActorContext se deriva del actor interno y membership vigente.
+- El tenant activo se revalida.
+- Los grants vienen de LC-IA.
+- Ningún claim libre sustituye source grants.
+
+Pruebas TDD:
+- Integration tests Auth0→ActorContext.
+- Cross-tenant test con token válido.
+- Test membership suspendida.
+
+Dependencias:
+M4.2 y M3.2-M3.3.","Highest","lcia-m4-auth0"
+"Task","M4.4 — Gestionar configuración y secretos de Auth0 por entorno","34","30","Objetivo:
+Externalizar configuración sensible y evitar secretos en repositorio o dominio.
+
+Criterios de aceptación:
+- Secrets no están versionados.
+- Configuración dev/test/prod está separada.
+- Arranque falla de forma explícita si falta configuración obligatoria.
+- Logs no exponen client secrets/tokens.
+
+Pruebas TDD:
+- Test/config check en CI sin secretos reales.
+- Test de arranque fallido con configuración incompleta.
+
+Dependencias:
+M4.1.","High","lcia-m4-auth0"
+"Task","M4.5 — Incorporar step-up MFA para operaciones privilegiadas","35","30","Objetivo:
+Preparar el control de MFA reciente para operaciones administrativas del MVP sin convertir Auth0 en autoridad de negocio.
+
+Criterios de aceptación:
+- Operación privilegiada sin evidencia MFA suficiente se rechaza.
+- La decisión de permiso sigue en LC-IA.
+- La evidencia de MFA se valida según el contrato técnico aprobado.
+- El comportamiento queda cubierto por tests.
+
+Pruebas TDD:
+- Tests de acceso privilegiado con/sin MFA.
+- Test de evidencia expirada o insuficiente.
+
+Dependencias:
+M4.1-M4.3 y decisión técnica sobre evidencia MFA.
+
+Restricciones de arquitectura:
+- No implementar si el contrato exacto ACR/AMR/Actions sigue sin validar; en ese caso el ticket permanece bloqueado explícitamente.","Medium","lcia-m4-auth0"
+"Story","M4.6 — E2E autenticado de búsqueda","36","30","Objetivo:
+Ejecutar el flujo de búsqueda con autenticación real, tenant activo y grants reales.
+
+Criterios de aceptación:
+- Token válido + grant permite buscar.
+- Token válido sin grant no revela fuente.
+- Token de otro tenant no cruza resultados.
+- El gateway revalida localmente.
+
+Pruebas TDD:
+- E2E autenticado happy path.
+- E2E no grant.
+- E2E cross-tenant.
+
+Dependencias:
+M4.1-M4.4 y M3.6.","Highest","lcia-m4-auth0"
+"Epic","M5 — Protocolo robusto, fan-out y cobertura","37","","Objetivo:
+Endurecer la comunicación remoto/gateway para una entrega al menos una vez, fan-out paralelo y consolidación COMPLETE/PARTIAL determinista.
+
+Gate de salida:
+La suite reproduce duplicados, desconexiones, expiraciones y ausencia de gateways; ninguna cobertura parcial se convierte en falso 'no encontrado'.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","Highest","lcia-m5-protocol-coverage"
+"Task","M5.1 — Versionar protocolo y WorkItem","38","37","Objetivo:
+Formalizar versión compatible del protocolo y las invariantes de un work item.
+
+Criterios de aceptación:
+- WorkItem incluye correlación, idempotencia, emisión, expiración, gateway y fuentes.
+- Versión incompatible impide ejecutar.
+- No contiene rutas, credenciales ni tokens humanos.
+
+Pruebas TDD:
+- Contract tests de compatibilidad.
+- Test versión incompatible.
+- Test de minimización del payload.
+
+Dependencias:
+M1.1.","High","lcia-m5-protocol-coverage"
+"Task","M5.2 — Implementar lease y ACK","39","37","Objetivo:
+Separar asignación temporal, recepción y resultado para tolerar desconexiones.
+
+Criterios de aceptación:
+- ACK no equivale a éxito.
+- Lease expirada permite reentrega controlada.
+- La misma operación conserva idempotencia.
+- Un resultado tardío se valida contra su contexto.
+
+Pruebas TDD:
+- Unit/integration tests de lease.
+- Test ACK perdido.
+- Test resultado tras lease expirada.
+
+Dependencias:
+M5.1 y M1.3.","High","lcia-m5-protocol-coverage"
+"Task","M5.3 — Implementar anti-replay, expiración e idempotencia","40","37","Objetivo:
+Rechazar órdenes repetidas fuera de política y garantizar un único efecto lógico.
+
+Criterios de aceptación:
+- Mensaje expirado se rechaza.
+- Replay inválido se rechaza.
+- Duplicado compatible reutiliza resultado lógico.
+- Duplicado contradictorio se marca para revisión/fallo seguro.
+
+Pruebas TDD:
+- Tests duplicado compatible/contradictorio.
+- Test expiración.
+- Test replay.
+
+Dependencias:
+M5.1-M5.2.","Highest","lcia-m5-protocol-coverage"
+"Task","M5.4 — Añadir backpressure y capacidad del gateway","41","37","Objetivo:
+Evitar que remoto asigne trabajo por encima de la capacidad declarada/permitida del gateway.
+
+Criterios de aceptación:
+- Gateway comunica capacidad disponible.
+- Remoto deja de asignar cuando se alcanza.
+- No se crean colas locales ilimitadas.
+- La capacidad no cambia permisos ni cobertura esperada.
+
+Pruebas TDD:
+- Tests de capacidad 0/1/N.
+- Integration test de saturación controlada.
+
+Dependencias:
+M5.2.","Medium","lcia-m5-protocol-coverage"
+"Story","M5.5 — Ejecutar fan-out paralelo a gateways esperados","42","37","Objetivo:
+Distribuir una búsqueda a todos los gateways autorizados del ámbito congelado.
+
+Criterios de aceptación:
+- Cobertura esperada se fija antes del fan-out.
+- No se reduce por desconexión.
+- Las contribuciones se correlacionan por gateway.
+- Resultados cross-tenant se rechazan.
+
+Pruebas TDD:
+- Tests fan-out 2+ gateways.
+- Test gateway ausente.
+- Test contribución de gateway no esperado.
+
+Dependencias:
+M3.5, M5.1-M5.3.","Highest","lcia-m5-protocol-coverage"
+"Task","M5.6 — Consolidar cobertura COMPLETE/PARTIAL","43","37","Objetivo:
+Aplicar de forma determinista las reglas de cobertura del MVP.
+
+Criterios de aceptación:
+- COMPLETE solo si todos los gateways esperados completan válidamente.
+- Cualquier ausencia produce PARTIAL.
+- PARTIAL nunca produce NOT_LOCATED_IN_SCOPE.
+- Gateway obligatorio ausente prevalece y escala.
+
+Pruebas TDD:
+- Caracterizar/migrar escenarios sintéticos de cobertura.
+- Tests COMPLETE sin candidatos.
+- Tests PARTIAL con/sin candidatos.
+- Test required gateway absent.
+
+Dependencias:
+M5.5 y M0.2.","Highest","lcia-m5-protocol-coverage"
+"Task","M5.7 — Administrar obligatoriedad de fuente/gateway","44","37","Objetivo:
+Representar la configuración obligatoria/opcional sin permitir que usuario o modelo la alteren durante una consulta.
+
+Criterios de aceptación:
+- Toda fuente es obligatoria por defecto.
+- Solo configuración administrativa puede marcar opcional.
+- Cambio queda persistido/auditado.
+- La operación usa la configuración congelada al iniciarse.
+
+Pruebas TDD:
+- Unit tests default required.
+- Test cambio administrativo.
+- Test usuario no puede rebajar obligatoriedad.
+
+Dependencias:
+M3.4 y M5.6.","Medium","lcia-m5-protocol-coverage"
+"Task","M5.8 — Implementar cancelación y reintentos acotados","45","37","Objetivo:
+Permitir terminar operaciones pendientes sin bucles indefinidos ni efectos duplicados.
+
+Criterios de aceptación:
+- Cancelación es observable.
+- Reintentos tienen límite/política explícita.
+- Cancelar no borra evidencia operativa necesaria.
+- Una operación cancelada no se presenta como cero resultados.
+
+Pruebas TDD:
+- Tests cancel before/after ACK.
+- Test retry limit.
+- Test cancel con gateway desconectado.
+
+Dependencias:
+M5.2-M5.3.","Medium","lcia-m5-protocol-coverage"
+"Story","M5.9 — Suite E2E de fallos distribuidos","46","37","Objetivo:
+Demostrar los escenarios de red críticos del MVP con varios gateways.
+
+Criterios de aceptación:
+- Se cubren desconexión, timeout, duplicado, gateway obligatorio ausente y opcional ausente.
+- La cobertura final coincide con el contrato.
+- No hay falso negativo universal.
+- La traza es determinista y minimizada.
+
+Pruebas TDD:
+- E2E matrix para escenarios críticos.
+- Verificar orden/traza estable.
+- Test no leakage entre tenants.
+
+Dependencias:
+M5.5-M5.8.","Highest","lcia-m5-protocol-coverage"
+"Epic","M6 — Extracción e indexación de contenido local","47","","Objetivo:
+Enriquecer el índice local con texto extraído y OCR sin trasladar contenido al remoto ni ejecutar contenido activo.
+
+Gate de salida:
+PDF/DOCX/XLSX e imágenes/PDF escaneados se indexan localmente con límites; fallos aislados no corrompen la fuente; búsqueda remota sigue recibiendo solo señales/metadatos mínimos.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","High","lcia-m6-extraction-ocr"
+"Task","M6.1 — Definir puerto de extracción documental","48","47","Objetivo:
+Separar detección de formato, extracción y OCR del ciclo de indexación.
+
+Criterios de aceptación:
+- Contrato tipado informa formato, texto/metadatos locales, OCR aplicado, warnings y fallo parcial.
+- No depende del motor concreto.
+- Resultados no autorizan ni publican remotamente contenido.
+
+Pruebas TDD:
+- Contract tests del extractor.
+- Test formato no soportado.
+- Test fallo parcial.
+
+Dependencias:
+M2.3.","High","lcia-m6-extraction-ocr"
+"Story","M6.2 — Extraer texto de PDF con texto seleccionable","49","47","Objetivo:
+Indexar localmente el contenido textual de PDFs no escaneados.
+
+Criterios de aceptación:
+- Texto queda local.
+- Se respetan límites de páginas/tamaño/tiempo configurados.
+- PDF corrupto falla por documento.
+- No se publica una entrada parcial como versión válida sin indicarlo.
+
+Pruebas TDD:
+- Fixtures PDF válidos/corruptos/grandes.
+- Integration test índice→búsqueda.
+
+Dependencias:
+M6.1 y M2.4.","High","lcia-m6-extraction-ocr"
+"Story","M6.3 — Extraer DOCX de forma segura","50","47","Objetivo:
+Indexar texto y metadatos permitidos de DOCX tratándolo como contenedor potencialmente hostil.
+
+Criterios de aceptación:
+- No se ejecuta contenido activo.
+- Se aplican límites de descompresión/lectura.
+- Un DOCX hostil no bloquea la fuente.
+- Texto permanece local.
+
+Pruebas TDD:
+- Fixtures DOCX válido/corrupto/zip-bomb simulado o límite equivalente.
+- Integration test búsqueda.
+
+Dependencias:
+M6.1.","Medium","lcia-m6-extraction-ocr"
+"Story","M6.4 — Extraer XLSX visible sin recalcular","51","47","Objetivo:
+Indexar nombres de hojas visibles, valores visibles y metadatos permitidos.
+
+Criterios de aceptación:
+- No se indexan hojas ocultas.
+- No se ejecutan macros.
+- No se recalculan fórmulas.
+- Solo se usan valores ya almacenados/visibles.
+- Se aplican límites de hojas/celdas/tamaño.
+
+Pruebas TDD:
+- Fixtures con fórmulas, hojas ocultas y macros.
+- Test valores visibles.
+- Test límites.
+
+Dependencias:
+M6.1.","Medium","lcia-m6-extraction-ocr"
+"Story","M6.5 — Incorporar OCR local","52","47","Objetivo:
+Obtener texto buscable para PDF escaneado, PNG, JPEG y TIFF sin texto seleccionable.
+
+Criterios de aceptación:
+- OCR se ejecuta solo localmente.
+- Tiene límites de tamaño/páginas/tiempo.
+- Fallo OCR queda visible y aislado.
+- Texto OCR nunca forma parte del payload remoto de búsqueda.
+
+Pruebas TDD:
+- Fixtures de imagen/PDF escaneado.
+- Test timeout/límite OCR.
+- E2E recuperación por texto OCR.
+
+Dependencias:
+M6.1 y decisión/selección del motor OCR local.","High","lcia-m6-extraction-ocr"
+"Task","M6.6 — Publicar actualizaciones atómicas del índice","53","47","Objetivo:
+Evitar que las búsquedas observen mezclas de versiones durante reextracción/reindexación.
+
+Criterios de aceptación:
+- Nueva versión se construye fuera de la entrada visible.
+- Se publica solo tras validar estabilidad del archivo.
+- La versión previa se conserva si la nueva falla.
+- Referencias previas se invalidan tras publicación válida.
+
+Pruebas TDD:
+- Integration test reindex exitoso/fallido.
+- Test archivo cambia durante extracción.
+- Test búsqueda concurrente.
+
+Dependencias:
+M2.6 y M6.2-M6.5 según formato.","High","lcia-m6-extraction-ocr"
+"Task","M6.7 — Aislar límites y archivos hostiles","54","47","Objetivo:
+Centralizar límites de recursos para enumeración, extracción, OCR e indexación.
+
+Criterios de aceptación:
+- Hay límites explícitos y configurables.
+- Excederlos cancela el documento, no toda la fuente.
+- Temporales se limpian.
+- Errores se minimizan en telemetría.
+
+Pruebas TDD:
+- Tests de límites por tamaño/tiempo/descompresión.
+- Test cleanup tras fallo.
+- Test fuente sigue utilizable.
+
+Dependencias:
+M6.1.","High","lcia-m6-extraction-ocr"
+"Story","M6.8 — E2E de búsqueda por contenido local","55","47","Objetivo:
+Demostrar recuperación por contenido extraído/OCR manteniendo minimización remota.
+
+Criterios de aceptación:
+- Consulta localiza documento cuyo nombre no contiene la pista.
+- Se distingue señal de match por contenido/OCR sin enviar fragmento.
+- El remoto no recibe texto.
+- Fallos de un documento no falsean cobertura de otros.
+
+Pruebas TDD:
+- E2E PDF text.
+- E2E DOCX/XLSX.
+- E2E OCR.
+- Test inspección de payload remoto.
+
+Dependencias:
+M6.2-M6.7.","Highest","lcia-m6-extraction-ocr"
+"Epic","M7 — Evaluación reproducible de recuperación","56","","Objetivo:
+Medir la calidad real del recuperador y cerrar las decisiones que solo pueden resolverse con datos.
+
+Gate de salida:
+Existe un dataset versionado, runner reproducible, métricas de recuperación y un gate explícito CONTINUE/PIVOT/STOP; UNEQUIVOCAL solo se habilita con evidencia aprobada.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","High","lcia-m7-evaluation"
+"Task","M7.1 — Definir esquema del dataset de evaluación","57","56","Objetivo:
+Versionar casos representativos con consulta, contexto autorizado, objetivo y resultado esperado.
+
+Criterios de aceptación:
+- Cada caso incluye consulta, tenant/actor de prueba, fuentes autorizadas, objetivo o inexistencia, alternativas válidas y resultado esperado.
+- Incluye casos ambiguos, denegados, indisponibles y OCR.
+- No se introducen datos reales no autorizados.
+
+Pruebas TDD:
+- Validación automática del schema.
+- Test dataset inválido.
+- Test referencia a documento inexistente en fixtures.
+
+Dependencias:
+M2 y M3 suficientemente estables.","High","lcia-m7-evaluation"
+"Task","M7.2 — Crear runner de evaluación reproducible","58","56","Objetivo:
+Ejecutar el mismo dataset contra una versión concreta del recuperador.
+
+Criterios de aceptación:
+- Runner fija configuración/versiones relevantes.
+- Resultados son serializables y comparables.
+- Un fallo técnico se separa de un fallo de recuperación.
+- Puede ejecutarse en CI sobre dataset sintético.
+
+Pruebas TDD:
+- Tests del runner.
+- Golden test con dataset pequeño.
+- Test de ejecución repetida determinista donde aplique.
+
+Dependencias:
+M7.1.","High","lcia-m7-evaluation"
+"Task","M7.3 — Calcular métricas de recuperación","59","56","Objetivo:
+Medir success@k, precision@k, latencia y tasas funcionales sin mezclar indisponibilidad con calidad.
+
+Criterios de aceptación:
+- Se calcula success@k.
+- Se calcula precision@k cuando procede.
+- Se informa latencia.
+- Se separan ambigüedad, ninguno, denegación y PARTIAL.
+- Los resultados son exportables.
+
+Pruebas TDD:
+- Tests de métricas con dataset controlado.
+- Casos límites k=1 y sin candidato.
+
+Dependencias:
+M7.2.","Medium","lcia-m7-evaluation"
+"Story","M7.4 — Definir evidencia suficiente por tipo documental","60","56","Objetivo:
+Cerrar con datos el criterio observable para diferenciar un candidato inequívoco de varios candidatos plausibles.
+
+Criterios de aceptación:
+- La evidencia se expresa por categorías/procedencia, no por score único.
+- Ranking por sí solo no declara identidad.
+- Los criterios quedan versionados y aprobados.
+- Los casos límite del dataset justifican la decisión.
+
+Pruebas TDD:
+- Tests de policy para casos inequívocos/ambiguos/contradictorios.
+- Pruebas contra dataset etiquetado.
+
+Dependencias:
+M7.1-M7.3 y corpus/fixtures suficientes.
+
+Restricciones de arquitectura:
+- No fijar un umbral arbitrario sin evidencia.","Highest","lcia-m7-evaluation"
+"Task","M7.5 — Implementar CandidateResolutionPolicy real","61","56","Objetivo:
+Trasladar el criterio aprobado a una policy determinista separada del ranking.
+
+Criterios de aceptación:
+- UNEQUIVOCAL exige autorización, vigencia, integridad, evidencia suficiente, ausencia de alternativas materiales y cobertura válida.
+- Contradicción relevante impide UNEQUIVOCAL.
+- Gateway obligatorio pendiente impide UNEQUIVOCAL.
+- La policy devuelve razones categóricas.
+
+Pruebas TDD:
+- Unit tests derivados de M7.4.
+- Regression tests sobre dataset.
+- Test PARTIAL.
+
+Dependencias:
+M7.4 y M5.6.","Highest","lcia-m7-evaluation"
+"Story","M7.6 — Emitir informe de decisión del piloto técnico","62","56","Objetivo:
+Tomar una decisión CONTINUE/PIVOT/STOP basada en métricas y riesgos residuales.
+
+Criterios de aceptación:
+- Informe identifica versión evaluada.
+- Incluye métricas y fallos por categoría.
+- Distingue calidad de recuperación, seguridad y disponibilidad.
+- La decisión está justificada y no añade capacidades fuera del alcance.
+
+Pruebas TDD:
+- Reejecutar runner desde cero y verificar reproducibilidad.
+- Comprobar que el informe corresponde al commit/configuración evaluados.
+
+Dependencias:
+M7.3-M7.5.","High","lcia-m7-evaluation"
+"Epic","M8 — Obtención explícita y efímera de documentos","63","","Objetivo:
+Permitir descargar un candidato vigente como un flujo separado, reautorizado, cifrado y con tránsito temporal sin persistencia documental remota.
+
+Gate de salida:
+Una descarga E2E valida permisos y versión en ambos límites, verifica integridad, entrega una sola vez y elimina buffers en éxito, error, cancelación o expiración.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","High","lcia-m8-transfer"
+"Task","M8.1 — Modelar TransferRequest y ciclo de vida","64","63","Objetivo:
+Separar formalmente búsqueda de obtención documental.
+
+Criterios de aceptación:
+- TransferRequest referencia un candidato/contexto concreto.
+- Tiene correlación, idempotencia, expiración y estado.
+- No reutiliza la búsqueda como permiso.
+- No contiene ruta local.
+
+Pruebas TDD:
+- Unit tests de invariantes/estados.
+- Test idempotencia.
+- Test expiración.
+
+Dependencias:
+M2.6, M3 y M5.","High","lcia-m8-transfer"
+"Story","M8.2 — Reautorizar obtención en remoto","65","63","Objetivo:
+Comprobar actor, tenant, membership y source grant actuales antes de solicitar bytes.
+
+Criterios de aceptación:
+- Grant revocado bloquea.
+- Tenant cambiado bloquea.
+- Referencia stale bloquea o deriva a nueva búsqueda.
+- La decisión se audita de forma minimizada.
+
+Pruebas TDD:
+- Integration tests allowed/denied/revoked/stale.
+- Cross-tenant test.
+
+Dependencias:
+M8.1 y M4.3.","Highest","lcia-m8-transfer"
+"Story","M8.3 — Reautorizar y resolver referencia en gateway","66","63","Objetivo:
+Volver a comprobar contexto y versión justo antes de abrir el archivo local.
+
+Criterios de aceptación:
+- Gateway resuelve referencia localmente.
+- Archivo cambiado/borrado no se entrega silenciosamente.
+- Fuente pausada/revocada bloquea.
+- No se exploran rutas alternativas.
+
+Pruebas TDD:
+- Integration tests changed/deleted/revoked.
+- Test referencia manipulada.
+
+Dependencias:
+M8.1, M2.6 y M3.6.","Highest","lcia-m8-transfer"
+"Task","M8.4 — Implementar buffer temporal aislado","67","63","Objetivo:
+Introducir tránsito remoto acotado que no se comporte como almacenamiento documental.
+
+Criterios de aceptación:
+- Buffer tiene tamaño/TTL.
+- Está aislado por tenant/transfer.
+- No participa en backups/índices/analítica.
+- Existe limpieza de huérfanos.
+- No se conserva el contenido tras cierre.
+
+Pruebas TDD:
+- Integration test TTL.
+- Test cleanup éxito/fallo/cancel.
+- Test aislamiento entre tenants.
+
+Dependencias:
+M8.1 y decisión técnica de almacenamiento temporal.","High","lcia-m8-transfer"
+"Story","M8.5 — Transferir y verificar integridad extremo a extremo","68","63","Objetivo:
+Mover bytes de forma cifrada y declarar disponibilidad solo tras verificar tamaño/hash.
+
+Criterios de aceptación:
+- Gateway calcula hash.
+- Remoto verifica tamaño/hash.
+- Diferencia falla cerrado.
+- Transferencia interrumpida purga parciales.
+- El resultado queda correlacionado.
+
+Pruebas TDD:
+- E2E transferencia válida.
+- Test hash mismatch.
+- Test interrupción.
+- Test tamaño máximo.
+
+Dependencias:
+M8.3-M8.4.","Highest","lcia-m8-transfer"
+"Story","M8.6 — Entregar documento con acceso de un solo uso","69","63","Objetivo:
+Permitir que el navegador autorizado consuma la transferencia sin convertirla en URL reutilizable indefinidamente.
+
+Criterios de aceptación:
+- Entrega es autenticada.
+- Token/canal es de un solo uso o equivalente seguro.
+- Expira.
+- Segunda reutilización se rechaza.
+- Completar activa limpieza.
+
+Pruebas TDD:
+- Integration tests one-use/expired.
+- E2E navegador simulado.
+
+Dependencias:
+M8.5.","High","lcia-m8-transfer"
+"Task","M8.7 — Propagar cancelación y limpieza","70","63","Objetivo:
+Garantizar que cancelar/expirar detenga gateway, subida, buffer y entrega cuando sea posible.
+
+Criterios de aceptación:
+- Cancelación llega a componentes activos.
+- Buffers parciales se eliminan.
+- Estado final no se confunde con éxito.
+- Cleanup huérfano cubre caídas.
+
+Pruebas TDD:
+- Tests cancel en fases distintas.
+- Test crash/recovery del cleanup.
+
+Dependencias:
+M8.4-M8.6.","High","lcia-m8-transfer"
+"Story","M8.8 — E2E de obtención segura","71","63","Objetivo:
+Demostrar búsqueda→selección→reauthorización→transferencia→entrega→borrado.
+
+Criterios de aceptación:
+- El usuario autorizado obtiene el documento correcto.
+- Un usuario sin grant no obtiene bytes.
+- Cambio de archivo se detecta.
+- Hash se verifica.
+- No queda buffer tras cierre.
+
+Pruebas TDD:
+- E2E happy path.
+- E2E revoked grant.
+- E2E stale file.
+- E2E cleanup assertion.
+
+Dependencias:
+M8.1-M8.7.","Highest","lcia-m8-transfer"
+"Epic","M9 — POST-MVP — Capacidades LLM controladas","72","","Objetivo:
+Introducir IA generativa solo después de validar la recuperación, separando interpretación de consulta y respuesta factual.
+
+Gate de salida:
+No forma parte del gate del MVP documental de recuperación. Cada capacidad LLM se activa detrás de puertos, políticas de minimización, evidencia y coste explícitos.
+
+Política de ejecución:
+- El hito se cierra por evidencia ejecutable, no por documentación.
+- Las decisiones de seguridad no resueltas bloquean; las decisiones técnicas reversibles no.
+- Cada ticket hijo debe terminar con tests y una PR/revisión autocontenida.","Low","lcia-post-mvp-llm"
+"Story","M9.1 — Interpretar consulta con LLM como pistas no autoritativas","73","72","Objetivo:
+Usar un LLM para extraer hints de tipo, entidad, fecha o tema sin conceder permisos.
+
+Criterios de aceptación:
+- Salida es estructurada.
+- Hints no amplían scope.
+- Fallo/JSON inválido no permite búsqueda fuera de políticas.
+- Existe fallback determinista o resultado controlado.
+
+Pruebas TDD:
+- Unit tests con fake.
+- Tests prompt→schema.
+- Test hint no autorizado.
+
+Dependencias:
+M7 completado y decisión CONTINUE.","Low","lcia-post-mvp-llm"
+"Task","M9.2 — Definir política de minimización para evidencia enviada a LLM","74","72","Objetivo:
+Determinar qué contenido puede salir del gateway/remoto hacia un modelo y bajo qué condiciones.
+
+Criterios de aceptación:
+- Política explícita y versionada.
+- Define proveedor/localidad permitidos.
+- Define contenido máximo y retención.
+- Sin política aprobada no se envía contenido.
+
+Pruebas TDD:
+- Tests de minimización.
+- Test bloqueo sin policy.
+
+Dependencias:
+M7 completado.","Low","lcia-post-mvp-llm"
+"Story","M9.3 — Generar respuesta factual estructurada con evidencia","75","72","Objetivo:
+Permitir respuestas sobre contenido únicamente cuando cada afirmación pueda vincularse a evidencia autorizada.
+
+Criterios de aceptación:
+- Cada claim tiene evidencia.
+- Sin evidencia suficiente no hay COMPLETED factual.
+- Contradicciones escalan.
+- Localizar documento no basta para afirmar hechos.
+
+Pruebas TDD:
+- Unit tests claims/evidence.
+- E2E factual con fixtures.
+- Test contradicción/no evidence.
+
+Dependencias:
+M9.2 y diseño factual específico.","Low","lcia-post-mvp-llm"
+"Task","M9.4 — Registrar coste y metadatos LLM","76","72","Objetivo:
+Añadir control de coste, latencia y proveedor sin acoplar dominio al SDK.
+
+Criterios de aceptación:
+- LlmClient es puerto.
+- Coste no nulo y trazable.
+- PreCostGuard puede bloquear antes de llamar.
+- Proveedor caído produce fallo técnico controlado.
+
+Pruebas TDD:
+- Tests fake cost.
+- Test budget exceeded.
+- Test provider unavailable.
+
+Dependencias:
+M9.1 o M9.3.","Low","lcia-post-mvp-llm"
+"Task","M9.5 — Añadir guardas de contenido no confiable","77","72","Objetivo:
+Detectar y tratar señales de prompt injection/RAG poisoning antes de completar respuestas factuales.
+
+Criterios de aceptación:
+- Documentos se tratan como entrada no confiable.
+- Señales no deciden por sí solas; policy determina resultado.
+- Intento claro de bypass puede bloquear.
+- Eventos se auditan de forma minimizada.
+
+Pruebas TDD:
+- Tests de inyección.
+- Test bypass.
+- Test contenido inocuo.
+
+Dependencias:
+M9.3 y diseño de políticas.","Low","lcia-post-mvp-llm"

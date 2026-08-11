@@ -1,0 +1,4 @@
+﻿"SourceId","Type","Summary","Action","JiraId","JiraKey","Status","Error"
+"910001","Epic","[IMPORT TEST V2] LC-IA — Jerarquía de prueba","CREATED","10003","LCIA-4","Backlog",""
+"910002","Story","[IMPORT TEST V2] Story hija del Epic","CREATED","10004","LCIA-5","Backlog",""
+"910003","Task","[IMPORT TEST V2] Task hija del Epic","CREATED","10005","LCIA-6","Backlog",""

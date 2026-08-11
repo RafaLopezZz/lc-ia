@@ -1,0 +1,4 @@
+Summary,Work Type,Work item ID,Parent,Description,Priority,Labels
+[IMPORT TEST V2] LC-IA — Jerarquía de prueba,Epic,910001,,Elemento temporal para validar importación CSV sin mapear Status. Debe crearse automáticamente en Backlog por el workflow.,Medium,lcia-import-smoke-test-v2
+[IMPORT TEST V2] Story hija del Epic,Story,910002,910001,Elemento temporal para validar jerarquía Epic → Story mediante Work item ID + Parent.,Medium,lcia-import-smoke-test-v2
+[IMPORT TEST V2] Task hija del Epic,Task,910003,910001,Elemento temporal para validar jerarquía Epic → Task mediante Work item ID + Parent.,Medium,lcia-import-smoke-test-v2
