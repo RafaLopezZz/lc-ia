@@ -58,7 +58,8 @@ record TenantCatalog(RetrievalModel.TenantId tenantId, List<RetrievalModel.Scope
     }
 }
 
-sealed interface ScopeResolution permits ScopeResolution.Selected, ScopeResolution.Clarification, ScopeResolution.Denied {
+sealed interface ScopeResolution
+        permits ScopeResolution.Selected, ScopeResolution.Clarification, ScopeResolution.Denied {
     record Selected(RetrievalModel.Scope scope) implements ScopeResolution {
         public Selected {
             scope = Objects.requireNonNull(scope, "scope");
@@ -156,13 +157,17 @@ final class InMemorySimulation {
         boolean stale = allowed.values().stream().anyMatch(Contribution::stale);
         RetrievalModel.Decision decision = stale ? RetrievalModel.Decision.STALE
                 : candidates.size() > 1 ? RetrievalModel.Decision.AMBIGUOUS
-                : candidates.isEmpty() && complete ? RetrievalModel.Decision.NOT_LOCATED_IN_SCOPE
-                : RetrievalModel.Decision.INSUFFICIENT;
-        return new RetrievalModel.EvaluatedOutcome(complete ? RetrievalModel.Coverage.COMPLETE : RetrievalModel.Coverage.PARTIAL,
-                decision, unavailable ? java.util.Optional.of(RetrievalModel.Impediment.UNAVAILABLE) : java.util.Optional.empty(), candidates);
+                        : candidates.isEmpty() && complete ? RetrievalModel.Decision.NOT_LOCATED_IN_SCOPE
+                                : RetrievalModel.Decision.INSUFFICIENT;
+        return new RetrievalModel.EvaluatedOutcome(
+                complete ? RetrievalModel.Coverage.COMPLETE : RetrievalModel.Coverage.PARTIAL,
+                decision,
+                unavailable ? java.util.Optional.of(RetrievalModel.Impediment.UNAVAILABLE) : java.util.Optional.empty(),
+                candidates);
     }
 
-    private static boolean isTerminal(Map<RetrievalModel.SourceId, Contribution> contributions, RetrievalModel.SourceId sourceId) {
+    private static boolean isTerminal(Map<RetrievalModel.SourceId, Contribution> contributions,
+            RetrievalModel.SourceId sourceId) {
         return contributions.containsKey(sourceId) && contributions.get(sourceId).terminal();
     }
 }
