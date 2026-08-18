@@ -18,7 +18,10 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: "25"
           cache: maven
-          cache-dependency-path: lc-ia-server/pom.xml
+          cache-dependency-path: |
+            pom.xml
+            synthetic-retrieval/pom.xml
+            lc-ia-server/pom.xml
       - run: mvn -B clean verify
