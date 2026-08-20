@@ -18,16 +18,29 @@ import org.junit.jupiter.api.Test;
 class SyntheticTrustBoundaryTest {
 
     @Test
-    void acceptsBoundAuthorizedPollAndKeepsOperationSeparateFromAttempt() {
+    void acceptsBoundAuthorizedPollWithMinimizedTrace() {
         Instant now = Instant.parse("2026-08-17T12:00:00Z");
         SyntheticTrustBoundary boundary = boundary(now);
 
         SyntheticTrustBoundary.Accepted accepted = assertInstanceOf(SyntheticTrustBoundary.Accepted.class,
                 boundary.authorize(poll(now, "nonce-a", "key-a", true)));
 
-        assertEquals("operation-1", accepted.work().operationId().value());
-        assertEquals("attempt-1", accepted.work().attemptId().value());
-        assertEquals(accepted.work().operationId(), accepted.trace().operationId());
+        assertEquals(new SyntheticTrustBoundary.Trace(new SyntheticTrustBoundary.TenantId("tenant-a"),
+                        new SyntheticTrustBoundary.GatewayId("gateway-a"),
+                        new SyntheticTrustBoundary.CorrelationId("correlation-a"),
+                        SyntheticTrustBoundary.TraceCategory.AUTHORIZED),
+                accepted.trace());
+    }
+
+    @Test
+    void m11AuthorizationCreatesNoRemoteWork() {
+        Instant now = Instant.parse("2026-08-17T12:00:00Z");
+        SyntheticTrustBoundary boundary = boundary(now);
+
+        SyntheticTrustBoundary.Accepted accepted = assertInstanceOf(SyntheticTrustBoundary.Accepted.class,
+                boundary.authorize(poll(now, "nonce-m11", "key-m11", true)));
+
+        assertEquals(SyntheticTrustBoundary.TraceCategory.AUTHORIZED, accepted.trace().category());
     }
 
     @Test
@@ -49,16 +62,6 @@ class SyntheticTrustBoundaryTest {
     }
 
     @Test
-    void idempotencyReusesTheLogicalOperationWithAnotherNonce() {
-        Instant now = Instant.parse("2026-08-17T12:00:00Z");
-        SyntheticTrustBoundary boundary = boundary(now);
-        SyntheticTrustBoundary.Accepted first = (SyntheticTrustBoundary.Accepted) boundary.authorize(poll(now, "nonce-a", "key-a", true));
-        SyntheticTrustBoundary.Accepted duplicate = (SyntheticTrustBoundary.Accepted) boundary.authorize(poll(now, "nonce-b", "key-a", true));
-
-        assertEquals(first.work(), duplicate.work());
-    }
-
-    @Test
     void tracesExposeOnlyOpaqueIdentifiersAndCategories() {
         assertEquals(0, Arrays.stream(SyntheticTrustBoundary.Trace.class.getRecordComponents())
                 .map(RecordComponent::getType).filter(type -> type == String.class).count());
@@ -74,8 +77,6 @@ class SyntheticTrustBoundaryTest {
             assertThrows(IllegalArgumentException.class, () -> new SyntheticTrustBoundary.CorrelationId(prohibited));
             assertThrows(IllegalArgumentException.class, () -> new SyntheticTrustBoundary.IdempotencyKey(prohibited));
             assertThrows(IllegalArgumentException.class, () -> new SyntheticTrustBoundary.OperationId(prohibited));
-            assertThrows(IllegalArgumentException.class, () -> new SyntheticTrustBoundary.AttemptId(prohibited));
-            assertThrows(IllegalArgumentException.class, () -> new SyntheticTrustBoundary.CandidateId(prohibited));
         }
     }
 

@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -13,7 +12,6 @@ import java.util.Set;
 public final class SyntheticTrustBoundary {
     private final Clock clock;
     private final Map<CredentialId, Binding> bindings = new HashMap<>();
-    private final Map<Key, Work> operations = new HashMap<>();
     private final Set<Nonce> usedNonces = new HashSet<>();
 
     public SyntheticTrustBoundary(Clock clock) {
@@ -50,16 +48,11 @@ public final class SyntheticTrustBoundary {
         if (!usedNonces.add(poll.nonce())) {
             return new Rejected(Rejection.REPLAY);
         }
-        Work work = operations.computeIfAbsent(new Key(poll.tenantId(), poll.idempotencyKey()), ignored ->
-                new Work(new OperationId("operation-" + (operations.size() + 1)), poll.correlationId(),
-                        new AttemptId("attempt-" + (operations.size() + 1)), poll.expiresAt(),
-                        List.of(new CandidateId("candidate-synthetic"))));
-        return new Accepted(work, new Trace(poll.tenantId(), poll.gatewayId(), work.operationId(), work.attemptId(),
-                work.correlationId(), TraceCategory.AUTHORIZED));
+        return new Accepted(new Trace(poll.tenantId(), poll.gatewayId(), poll.correlationId(), TraceCategory.AUTHORIZED));
     }
 
     public sealed interface Decision permits Accepted, Rejected { }
-    public record Accepted(Work work, Trace trace) implements Decision { }
+    public record Accepted(Trace trace) implements Decision { }
     public record Rejected(Rejection reason) implements Decision { }
     public enum Rejection { REVOKED, BINDING, EXPIRED, REPLAY, REMOTE_DENIED, LOCAL_DENIED, PROHIBITED }
     public enum TraceCategory { AUTHORIZED, REJECTED }
@@ -70,8 +63,6 @@ public final class SyntheticTrustBoundary {
     public record CorrelationId(String value) { public CorrelationId { opaque(value, "correlationId"); } }
     public record IdempotencyKey(String value) { public IdempotencyKey { opaque(value, "idempotencyKey"); } }
     public record OperationId(String value) { public OperationId { opaque(value, "operationId"); } }
-    public record AttemptId(String value) { public AttemptId { opaque(value, "attemptId"); } }
-    public record CandidateId(String value) { public CandidateId { opaque(value, "candidateId"); } }
     public record Poll(TenantId tenantId, GatewayId gatewayId, CredentialId credentialId, Nonce nonce,
                        Instant issuedAt, Instant expiresAt, CorrelationId correlationId, IdempotencyKey idempotencyKey,
                        boolean remoteAuthorized) {
@@ -82,14 +73,9 @@ public final class SyntheticTrustBoundary {
             Objects.requireNonNull(correlationId, "correlationId"); Objects.requireNonNull(idempotencyKey, "idempotencyKey");
         }
     }
-    public record Work(OperationId operationId, CorrelationId correlationId, AttemptId attemptId, Instant expiresAt,
-                       List<CandidateId> candidates) {
-        public Work { candidates = List.copyOf(candidates); }
-    }
-    public record Trace(TenantId tenantId, GatewayId gatewayId, OperationId operationId, AttemptId attemptId,
-                        CorrelationId correlationId, TraceCategory category) { }
+    public record Trace(TenantId tenantId, GatewayId gatewayId, CorrelationId correlationId,
+                        TraceCategory category) { }
     private record Binding(TenantId tenantId, GatewayId gatewayId, boolean active) { }
-    private record Key(TenantId tenantId, IdempotencyKey idempotencyKey) { }
 
     private static void opaque(String value, String name) {
         String normalized = value == null ? "" : value.toLowerCase();
