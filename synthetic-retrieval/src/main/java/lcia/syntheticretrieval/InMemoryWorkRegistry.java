@@ -16,7 +16,7 @@ final class InMemoryWorkRegistry {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    Work register(Registration request) {
+    synchronized Work register(Registration request) {
         Objects.requireNonNull(request, "request");
         for (Work work : works) {
             if (work.tenant().equals(request.tenant()) && work.idempotencyKey().equals(request.idempotencyKey())) {
@@ -26,37 +26,51 @@ final class InMemoryWorkRegistry {
         Work work = new Work(request.tenant(), request.targetGateway(),
                 new SyntheticTrustBoundary.OperationId("operation-" + nextOperation++),
                 request.idempotencyKey(), request.correlationId(), request.expiresAt(),
-                DeliveryState.PENDING, Status.PENDING);
+                DeliveryState.PENDING);
         works.add(work);
         return work;
     }
 
     List<Work> pendingFor(SyntheticTrustBoundary.TenantId tenant, SyntheticTrustBoundary.GatewayId gateway) {
+        Instant now = clock.instant();
         return works.stream()
                 .filter(work -> work.tenant().equals(tenant)
                         && work.targetGateway().equals(gateway)
                         && work.deliveryState() == DeliveryState.PENDING
-                        && work.expiresAt().isAfter(clock.instant()))
+                        && effectiveStatusFor(work, now) == EffectiveStatus.PENDING)
                 .toList();
     }
 
-    List<Work> pendingFor(SyntheticTrustBoundary.TenantId tenant, SyntheticTrustBoundary.IdempotencyKey idempotencyKey) {
+    Optional<Work> findByIdempotency(SyntheticTrustBoundary.TenantId tenant,
+            SyntheticTrustBoundary.IdempotencyKey idempotencyKey) {
         return works.stream()
                 .filter(work -> work.tenant().equals(tenant) && work.idempotencyKey().equals(idempotencyKey))
-                .toList();
+                .findFirst();
     }
 
-    Optional<Status> statusFor(SyntheticTrustBoundary.TenantId tenant,
-                               SyntheticTrustBoundary.CorrelationId correlationId) {
-        return works.stream()
-                .filter(work -> work.tenant().equals(tenant) && work.correlationId().equals(correlationId))
-                .findFirst()
-                .map(work -> work.expiresAt().isAfter(clock.instant()) ? Status.PENDING : Status.EXPIRED);
+    Optional<EffectiveStatus> effectiveStatusFor(SyntheticTrustBoundary.TenantId tenant,
+            SyntheticTrustBoundary.CorrelationId correlationId) {
+        Optional<Work> work = works.stream()
+                .filter(candidate -> candidate.tenant().equals(tenant)
+                        && candidate.correlationId().equals(correlationId))
+                .findFirst();
+        Instant now = clock.instant();
+        return work.map(candidate -> effectiveStatusFor(candidate, now));
+    }
+
+    EffectiveStatus effectiveStatusFor(Work work) {
+        return effectiveStatusFor(work, clock.instant());
+    }
+
+    private static EffectiveStatus effectiveStatusFor(Work work, Instant now) {
+        return work.deliveryState() == DeliveryState.PENDING && work.expiresAt().isAfter(now)
+                ? EffectiveStatus.PENDING
+                : EffectiveStatus.EXPIRED;
     }
 
     record Registration(SyntheticTrustBoundary.TenantId tenant, SyntheticTrustBoundary.GatewayId targetGateway,
-                        SyntheticTrustBoundary.IdempotencyKey idempotencyKey,
-                        SyntheticTrustBoundary.CorrelationId correlationId, Instant expiresAt) {
+            SyntheticTrustBoundary.IdempotencyKey idempotencyKey,
+            SyntheticTrustBoundary.CorrelationId correlationId, Instant expiresAt) {
         Registration {
             Objects.requireNonNull(tenant, "tenant");
             Objects.requireNonNull(targetGateway, "targetGateway");
@@ -67,10 +81,15 @@ final class InMemoryWorkRegistry {
     }
 
     record Work(SyntheticTrustBoundary.TenantId tenant, SyntheticTrustBoundary.GatewayId targetGateway,
-                SyntheticTrustBoundary.OperationId operationId, SyntheticTrustBoundary.IdempotencyKey idempotencyKey,
-                SyntheticTrustBoundary.CorrelationId correlationId, Instant expiresAt, DeliveryState deliveryState,
-                Status status) { }
+            SyntheticTrustBoundary.OperationId operationId, SyntheticTrustBoundary.IdempotencyKey idempotencyKey,
+            SyntheticTrustBoundary.CorrelationId correlationId, Instant expiresAt, DeliveryState deliveryState) {
+    }
 
-    enum DeliveryState { PENDING }
-    enum Status { PENDING, EXPIRED }
+    enum DeliveryState {
+        PENDING
+    }
+
+    enum EffectiveStatus {
+        PENDING, EXPIRED
+    }
 }
