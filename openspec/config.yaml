@@ -9,28 +9,28 @@ delivery:
   strategy: auto-chain
   review_budget_lines: 800
 
-strict_tdd: false
+strict_tdd: true
 
 context: |
-  Estado real: documentación conceptual del MVP; no existe implementación ni configuración de build.
-  Arquitectura objetivo documentada: servicio remoto y gateway local con límites de confianza separados.
-  Stack objetivo citado en documentación previa: Java, Spring Boot y PostgreSQL; todavía no está materializado.
-  Alcance habilitado: desarrollo y validación con datos exclusivamente sintéticos.
-  Datos reales y habilitación operativa permanecen bloqueados por gates de identidad, seguridad y operación.
+  Estado real: implementación Java con reactor Maven compuesto por los módulos synthetic-retrieval y lc-ia-server.
+  Pruebas JUnit, pruebas de arquitectura y CI están disponibles.
+  La validación raíz es mvn -B clean verify con Java 25.
+  No existe una E2E multiproceso completa.
+  Los datos reales permanecen fuera de alcance.
   Idioma de documentación: español profesional neutro; código e identificadores futuros: inglés.
 
 testing:
-  detected_at: 2026-08-02
-  availability: unavailable
-  reason: No se detectaron implementación, manifiestos, configuración de build ni test runner.
+  detected_at: 2026-08-21
+  availability: available
+  reason: JUnit, pruebas de arquitectura y CI están disponibles en la implementación Java con Maven.
   runner:
-    available: false
-    framework: ""
-    command: ""
+    available: true
+    framework: JUnit
+    command: mvn -B clean verify
   layers:
     unit:
-      available: false
-      tool: ""
+      available: true
+      tool: JUnit
     integration:
       available: false
       tool: ""
@@ -67,12 +67,11 @@ rules:
   apply:
     guidelines:
       - Seguir las especificaciones aceptadas y crear solo la infraestructura mínima necesaria.
-      - Incorporar un test runner antes de exigir TDD estricto.
-    tdd: false
-    test_command: ""
+    tdd: true
+    test_command: mvn -B clean verify
   verify:
-    test_command: ""
-    build_command: ""
+    test_command: mvn -B clean verify
+    build_command: mvn -B clean verify
     coverage_threshold: 0
   archive:
     - Advertir antes de integrar deltas destructivos.
