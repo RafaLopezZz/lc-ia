@@ -1,7 +1,6 @@
 package com.leovinci.leos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.leovinci.leos.adapters.in.https.SyntheticRemoteGatewayHttpBoundary;
 import java.net.URI;
@@ -25,9 +24,7 @@ class SyntheticRemoteGatewayHttpBoundaryTest {
             HttpResponse<String> response = get(edge.uri(), "nonce-a", "key-a", "true", "");
 
             assertEquals(200, response.statusCode());
-            assertTrue(response.body().contains("operation=operation-1"));
-            assertTrue(response.body().contains("attempt=attempt-1"));
-            assertTrue(response.body().contains("candidate=candidate-synthetic"));
+            assertEquals("trace=AUTHORIZED", response.body());
         }
     }
 

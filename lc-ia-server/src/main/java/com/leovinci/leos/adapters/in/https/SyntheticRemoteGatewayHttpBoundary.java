@@ -69,9 +69,7 @@ public final class SyntheticRemoteGatewayHttpBoundary implements AutoCloseable {
                 send(exchange, 403, "category=LOCAL_DENIED");
                 return;
             }
-            SyntheticTrustBoundary.Work work = ((SyntheticTrustBoundary.Accepted) decision).work();
-            send(exchange, 200, "operation=" + work.operationId().value() + "&attempt=" + work.attemptId().value()
-                    + "&candidate=" + work.candidates().getFirst().value() + "&trace=AUTHORIZED");
+            send(exchange, 200, "trace=AUTHORIZED");
         } catch (RuntimeException invalid) {
             send(exchange, 400, "category=PROHIBITED");
         }
